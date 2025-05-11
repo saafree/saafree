@@ -33,7 +33,7 @@ export default function SignUp() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Mật применяется
+                placeholder="Mật khẩu"
             />
             <button onClick={handleSignUp}>Đăng ký</button>
             {message && <p>{message}</p>}

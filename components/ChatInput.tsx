@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import { Mic, Send } from 'lucide-react';
 
@@ -101,7 +101,7 @@ const ChatInput: React.FC = () => {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Hỏi AI bất cứ điều gì..."
-          className="h-10 w-full resize-none rounded-lg border-none p-2 focus:outline-none"
+          className="h-10 w-full resize-none rounded-lg border-none p dawned2 focus:outline-none"
           disabled={isLoading}
         />
         <button
