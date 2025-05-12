@@ -1,54 +1,50 @@
-import React from 'react';
-import type { Metadata, Viewport } from 'next';
-import { Noto_Sans } from 'next/font/google';
-import './globals.css';
-import ChatInput from '@/components/ChatInput';
+import React from "react";
+import type { Metadata } from "next";
+import { Noto_Sans } from "next/font/google";
+import "./globals.css";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { SpeechRecognitionProvider } from "@/contexts/SpeechRecognitionContext";
+import { Toaster } from "react-hot-toast";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
-const notoSans = Noto_Sans({
-  weight: ['400', '700'],
-  subsets: ['latin', 'vietnamese'],
-  variable: '--font-noto-sans',
+const notoSans = Noto_Sans({ 
+  subsets: ["latin"], 
+  weight: ["400", "700"],
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: 'Saafree - Tự động hóa Bán hàng & Quảng bá với AI',
-  description:
-    'Dễ dàng bán sản phẩm, quảng bá thương hiệu trên Zalo, Facebook, Shopee và website riêng mà không cần kỹ năng kỹ thuật.',
-  metadataBase: new URL('https://saafree.com'),
-  openGraph: {
-    title: 'Saafree - Tự động hóa Bán hàng & Quảng bá với AI',
-    description:
-      'Dễ dàng bán sản phẩm, quảng bá thương hiệu trên Zalo, Facebook, Shopee và website riêng mà không cần kỹ năng kỹ thuật.',
-    url: 'https://saafree.com',
-    siteName: 'Saafree',
-    images: [
-      {
-        url: '/images/og-image.png',
-        width: 1200,
-        height: 630,
-      },
-    ],
+  title: {
+    default: "Saafree - Tạo bài quảng cáo dễ dàng",
+    template: "%s | Saafree",
   },
+  description: "Tạo bài bán hàng và quảng bá trên các nền tảng Zalo, Facebook, Shopee, website với Saafree.",
+  openGraph: {
+    title: "Saafree - Tạo bài quảng cáo dễ dàng",
+    description: "Tạo bài bán hàng và quảng bá trên các nền tảng Zalo, Facebook, Shopee, website với Saafree.",
+    images: ["/images/og-image.png"],
+    url: "https://saafree.com",
+  },
+  metadataBase: new URL("https://saafree.com"),
 };
 
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1.0,
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="vi">
-      <head>
-        <link rel="manifest" href="/manifest.json" />
-      </head>
-      <body className={`${notoSans.variable} antialiased min-h-screen flex flex-col`}>
-        {children}
-        <ChatInput />
+      <body className={notoSans.className}>
+        <AuthProvider>
+          <SpeechRecognitionProvider>
+            <div className="min-h-screen flex flex-col">
+              <Header />
+              <main className="flex-1">
+                {children}
+              </main>
+              <Footer />
+            </div>
+            <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+          </SpeechRecognitionProvider>
+        </AuthProvider>
       </body>
     </html>
   );

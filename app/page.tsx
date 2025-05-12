@@ -1,102 +1,101 @@
-import Link from 'next/link';
-import Image from 'next/image';
-import { Metadata } from 'next';
+"use client";
 
-export const metadata: Metadata = {
-  title: 'Saafree - Tự động hóa Bán hàng & Quảng bá với AI',
-  description: 'Dễ dàng bán sản phẩm, quảng bá thương hiệu trên Zalo, Facebook, Shopee và website riêng mà không cần kỹ năng kỹ thuật.',
-  openGraph: {
-    title: 'Saafree - Tự động hóa Bán hàng & Quảng bá với AI',
-    description: 'Dễ dàng bán sản phẩm, quảng bá thương hiệu trên Zalo, Facebook, Shopee và website riêng mà không cần kỹ năng kỹ thuật.',
-    url: 'https://saafree.com',
-    siteName: 'Saafree',
-    images: [
-      {
-        url: '/images/og-image.png',
-        width: 1200,
-        height: 630,
-      },
-    ],
-  },
-};
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import ChatInput from "@/components/ChatInput";
+import PlatformSelectorModal from "@/components/PlatformSelectorModal";
+import AuthModal from "@/components/AuthModal";
+import { toast } from "react-hot-toast";
 
 export default function Home() {
+  const router = useRouter();
+  const { user, signOut } = useAuth();
+  const [showPlatformModal, setShowPlatformModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [message, setMessage] = useState("");
+  const [adType, setAdType] = useState<"sales" | "promotion">("sales");
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast.success("Đăng xuất thành công");
+    } catch (error) {
+      toast.error("Đăng xuất thất bại");
+    }
+  };
+
+  const handleCreateAd = (type: "sales" | "promotion") => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+    setAdType(type);
+    setShowPlatformModal(true);
+  };
+
+  const handlePlatformSelect = (platform: string) => {
+    router.push(`/create-ad/${showPlatformModal ? "sales" : "promotion"}/${platform}`);
+  };
+
+  const handleSendMessage = () => {
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+    // Xử lý gửi tin nhắn
+    setMessage("");
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div className="flex items-center">
-            <Image src="/images/logo.png" alt="Saafree Logo" width={40} height={40} />
-            <span className="ml-2 text-xl font-bold text-gray-800">Saafree</span>
-          </div>
-          <nav>
-            <Link href="/auth/login" className="text-gray-600 hover:text-gray-800 mr-4">
-              Đăng nhập
-            </Link>
-            <Link
-              href="/auth/signup"
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-            >
-              Đăng ký
-            </Link>
-          </nav>
-        </div>
-      </header>
-
-      {/* Hero Section */}
       <main className="flex-grow">
-        <section className="bg-gradient-to-r from-blue-50 to-indigo-50 py-20">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h1 className="text-4xl sm:text-5xl font-bold text-gray-800 mb-6">
-              Saafree - Tự động hóa Bán hàng & Quảng bá với AI
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="text-center mb-12">
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+              Tạo bài đăng quảng cáo tự động
             </h1>
-            <p className="text-lg sm:text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-              Dễ dàng bán sản phẩm, quảng bá thương hiệu trên Zalo, Facebook, Shopee và website riêng
-              mà không cần kỹ năng kỹ thuật.
+            <p className="text-xl text-gray-600">
+              Chỉ cần nhập nội dung, chúng tôi sẽ tạo bài đăng phù hợp với từng nền tảng
             </p>
-            <div className="flex justify-center gap-4">
-              <Link
-                href="/create-ad/sell"
-                className="bg-blue-600 text-white px-6 py-3 rounded-md text-lg font-semibold hover:bg-blue-700"
-              >
-                Bán sản phẩm/Dịch vụ
-              </Link>
-              <Link
-                href="/create-ad/promote"
-                className="bg-green-600 text-white px-6 py-3 rounded-md text-lg font-semibold hover:bg-green-700"
-              >
-                Quảng bá thương hiệu
-              </Link>
-            </div>
           </div>
-        </section>
+
+          <div className="flex justify-center space-x-4 mb-12">
+            <button
+              onClick={() => handleCreateAd("sales")}
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Tạo bài bán hàng
+            </button>
+            <button
+              onClick={() => handleCreateAd("promotion")}
+              className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors"
+            >
+              Tạo bài quảng cáo
+            </button>
+          </div>
+
+          <div className="max-w-3xl mx-auto">
+            <ChatInput
+              value={message}
+              onChange={setMessage}
+              onSend={handleSendMessage}
+              onSpeechStart={() => setShowAuthModal(true)}
+            />
+          </div>
+        </div>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white shadow-sm py-6 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-start sm:items-center">
-          {/* Thông tin liên hệ (bên trái) */}
-          <div className="text-gray-800 mb-4 sm:mb-0">
-            <p>
-              Liên hệ:{' '}
-              <a href="tel:+0902390886" className="text-gray-600 hover:text-gray-800">
-                0902390886
-              </a>
-            </p>
-            <p>
-              Email:{' '}
-              <a href="mailto:saafreejsc@gmail.com" className="text-gray-600 hover:text-gray-800">
-                saafreejsc@gmail.com
-              </a>
-            </p>
-          </div>
-          {/* Bản quyền (căn giữa) */}
-          <div className="text-gray-800 text-center">
-            <p>© 2025 Saafree. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <PlatformSelectorModal
+        isOpen={showPlatformModal}
+        onClose={() => setShowPlatformModal(false)}
+        type={adType}
+      />
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+      />
     </div>
   );
 }

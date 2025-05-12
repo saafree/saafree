@@ -1,120 +1,194 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
-import { Mic, Send } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useSpeechRecognitionContext } from '@/contexts/SpeechRecognitionContext';
+import { toast } from 'react-hot-toast';
+import { Mic, ArrowRight } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@radix-ui/react-tooltip";
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 
-interface Message {
-  text: string;
-  isUser: boolean;
+interface ChatInputProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  onSend?: () => void;
+  onSpeechStart?: () => void;
 }
 
-const ChatInput: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const { transcript, listening, resetTranscript } = useSpeechRecognition();
-  const [isLoading, setIsLoading] = useState(false);
+export default function ChatInput({ value, onChange, placeholder = "Nhập tin nhắn...", onSend, onSpeechStart }: ChatInputProps) {
+  const [isSpeechLoaded, setIsSpeechLoaded] = useState<boolean | null>(null);
+  const [listening, setListening] = useState<boolean>(false);
+  const { activeField, setActiveField } = useSpeechRecognitionContext();
+  const recognitionRef = useRef<any>(null);
+  const [transcript, setTranscript] = useState("");
+  const { user } = useAuth();
+  const router = useRouter();
 
-  // Xử lý transcript từ giọng nói
   useEffect(() => {
-    if (transcript) {
-      setInput(transcript);
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      setIsSpeechLoaded(!!SpeechRecognition);
     }
-  }, [transcript]);
+  }, []);
 
-  // Bắt đầu/ dừng ghi âm
-  const toggleListening = () => {
-    if (listening) {
-      SpeechRecognition.stopListening();
-      resetTranscript();
-    } else {
-      SpeechRecognition.startListening({ language: 'vi-VN', continuous: true });
+  useEffect(() => {
+    if (listening && transcript) {
+      onChange(transcript);
     }
-  };
+  }, [transcript, listening, onChange]);
 
-  // Gửi prompt đến API
-  const handleSend = async () => {
-    if (!input.trim()) return;
+  const handleSpeech = () => {
+    if (!user) {
+      if (onSpeechStart) {
+        onSpeechStart();
+      }
+      return;
+    }
 
-    const newMessage: Message = { text: input, isUser: true };
-    setMessages((prev) => [...prev, newMessage]);
-    setInput('');
-    resetTranscript();
-    setIsLoading(true);
+    if (isSpeechLoaded === null) {
+      toast.error("Chức năng nhận diện giọng nói đang tải...");
+      return;
+    }
+    if (!isSpeechLoaded) {
+      toast.error("Trình duyệt không hỗ trợ nhận diện giọng nói");
+      return;
+    }
 
     try {
-      const user_id = 'uuid-của-người-dùng'; // Thay bằng logic lấy user_id từ Supabase Auth
-      const response = await fetch('/api/ai/grok', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id, prompt: input }),
-      });
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+      recognition.lang = 'vi-VN';
+      recognition.continuous = true;
+      recognition.interimResults = true;
 
-      const data = await response.json();
-      if (data.error) {
-        setMessages((prev) => [...prev, { text: 'Lỗi: ' + data.error, isUser: false }]);
-      } else {
-        setMessages((prev) => [...prev, { text: data.response, isUser: false }]);
-      }
+      recognition.onresult = (event) => {
+        const newTranscript = Array.from(event.results)
+          .map(result => result[0].transcript)
+          .join('');
+        setTranscript(newTranscript);
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        setListening(false);
+        setActiveField(null);
+        toast.error('Lỗi nhận dạng giọng nói');
+      };
+
+      recognition.onend = () => {
+        setListening(false);
+        setActiveField(null);
+      };
+
+      setActiveField("chat");
+      setListening(true);
+      recognition.start();
+      toast.success('Bắt đầu ghi âm');
     } catch (error) {
-      setMessages((prev) => [...prev, { text: 'Lỗi kết nối AI', isUser: false }]);
-    } finally {
-      setIsLoading(false);
+      console.error('Error starting speech recognition:', error);
+      toast.error('Không thể bắt đầu ghi âm');
     }
   };
 
-  // Xử lý phím Enter
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const stopSpeech = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    setListening(false);
+    setActiveField(null);
+    setTranscript("");
+    toast.success('Đã dừng ghi âm');
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      if (!user) {
+        if (onSpeechStart) {
+          onSpeechStart();
+        }
+        return;
+      }
+      if (value.trim() && onSend) {
+        onSend();
+        toast.success('Đã gửi tin nhắn');
+      } else {
+        toast.error('Vui lòng nhập nội dung tin nhắn');
+      }
     }
   };
 
-  return (
-    <div className="fixed bottom-4 right-4 z-50 w-[300px] max-w-[90%] rounded-lg bg-white shadow-xl md:w-[350px]">
-      {/* Cửa sổ chat */}
-      {messages.length > 0 && (
-        <div className="max-h-[200px] overflow-y-auto rounded-t-lg bg-gray-50 p-3">
-          {messages.map((msg, index) => (
-            <div
-              key={index}
-              className={`mb-2 rounded-lg p-2 ${msg.isUser ? 'bg-blue-100 text-right' : 'bg-gray-200 text-left'}`}
-            >
-              {msg.text}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Ô nhập liệu */}
-      <div className="flex items-center rounded-b-lg border-t bg-white p-2">
-        <button
-          onClick={toggleListening}
-          className={`mr-2 rounded-full p-2 ${listening ? 'bg-red-500 text-white' : 'bg-gray-200'}`}
-          aria-label={listening ? 'Dừng ghi âm' : 'Bắt đầu ghi âm'}
-        >
-          <Mic size={20} />
-        </button>
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Hỏi AI bất cứ điều gì..."
-          className="h-10 w-full resize-none rounded-lg border-none p dawned2 focus:outline-none"
-          disabled={isLoading}
-        />
-        <button
-          onClick={handleSend}
-          className="ml-2 rounded-full bg-blue-500 p-2 text-white hover:bg-blue-600 disabled:opacity-50"
-          disabled={isLoading || !input.trim()}
-          aria-label="Gửi tin nhắn"
-        >
-          <Send size={20} />
-        </button>
+  if (isSpeechLoaded === null) {
+    return (
+      <div className="flex items-center justify-center p-4">
+        <p className="text-gray-500">Đang tải chức năng nhận diện giọng nói...</p>
       </div>
-    </div>
-  );
-};
+    );
+  }
 
-export default ChatInput;
+  if (!isSpeechLoaded) {
+    return (
+      <div className="flex items-center justify-center p-4">
+        <p className="text-red-500">Trình duyệt không hỗ trợ nhận diện giọng nói.</p>
+      </div>
+    );
+  }
+
+  return (
+    <TooltipProvider>
+      <div className="flex items-center space-x-3">
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyPress={handleKeyPress}
+          className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base resize-none"
+          placeholder={placeholder}
+          rows={1}
+        />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={listening ? stopSpeech : handleSpeech}
+              className={`p-2 sm:p-3 rounded-lg transition-colors ${
+                listening ? "bg-red-500" : "bg-blue-500"
+              } text-white hover:bg-opacity-90`}
+            >
+              <Mic className="w-4 sm:w-5 h-4 sm:h-5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {listening ? "Dừng ghi âm" : "Ghi âm"}
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => {
+                if (!user) {
+                  if (onSpeechStart) {
+                    onSpeechStart();
+                  }
+                  return;
+                }
+                value.trim() && onSend?.();
+              }}
+              className={`p-2 sm:p-3 rounded-lg transition-colors ${
+                value.trim() ? "bg-green-500" : "bg-gray-300"
+              } text-white hover:bg-opacity-90`}
+              disabled={!value.trim()}
+            >
+              <ArrowRight className="w-4 sm:w-5 h-4 sm:h-5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            Gửi tin nhắn
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    </TooltipProvider>
+  );
+}
